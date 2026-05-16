@@ -3929,7 +3929,7 @@ export default function App() {
     [blocsAffiches]
   );
 
-  const capaciteQuartComplet = round((totalWorkMinutes(current.periodes) * 585) / 60);
+  const capaciteQuartComplet = round((totalWorkMinutes(current.periodes) * 600) / 60);
 
   const efficaciteQuartComplet =
     capaciteQuartComplet > 0
