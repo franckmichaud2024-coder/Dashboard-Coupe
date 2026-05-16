@@ -674,7 +674,7 @@ function Btn({ children, active, onClick, compact = false }) {
           <KPI
             key={key}
             title="Production actuelle"
-            value={current.productionReelle}
+            value={Number(current.productionReelle || 0) > 0 ? String(Number(current.productionReelle || 0)) : ""}
             subtitle={current.productionReelle >= current.objectifReel ? "SUR LA CIBLE" : "SOUS LA CIBLE"}
             {...common}
           />
@@ -1067,7 +1067,7 @@ function Gauge({ value, target = 92, compact = false }) {
           <KPI
             key={key}
             title="Production actuelle"
-            value={current.productionReelle}
+            value={Number(current.productionReelle || 0) > 0 ? String(Number(current.productionReelle || 0)) : ""}
             subtitle={current.productionReelle >= current.objectifReel ? "SUR LA CIBLE" : "SOUS LA CIBLE"}
             {...common}
           />
@@ -1382,7 +1382,7 @@ function ChartTooltip({ active, payload, label }) {
           <KPI
             key={key}
             title="Production actuelle"
-            value={current.productionReelle}
+            value={Number(current.productionReelle || 0) > 0 ? String(Number(current.productionReelle || 0)) : ""}
             subtitle={current.productionReelle >= current.objectifReel ? "SUR LA CIBLE" : "SOUS LA CIBLE"}
             {...common}
           />
@@ -1602,7 +1602,7 @@ function NumberText({ children, color = "#eefaff", size = 13, weight = 800 }) {
           <KPI
             key={key}
             title="Production actuelle"
-            value={current.productionReelle}
+            value={Number(current.productionReelle || 0) > 0 ? String(Number(current.productionReelle || 0)) : ""}
             subtitle={current.productionReelle >= current.objectifReel ? "SUR LA CIBLE" : "SOUS LA CIBLE"}
             {...common}
           />
@@ -1789,7 +1789,7 @@ function MobileBlocCard({ bloc, updateBloc, mobileCompact }) {
           <KPI
             key={key}
             title="Production actuelle"
-            value={current.productionReelle}
+            value={Number(current.productionReelle || 0) > 0 ? String(Number(current.productionReelle || 0)) : ""}
             subtitle={current.productionReelle >= current.objectifReel ? "SUR LA CIBLE" : "SOUS LA CIBLE"}
             {...common}
           />
@@ -4311,7 +4311,7 @@ export default function App() {
           <KPI
             key={key}
             title="Production actuelle"
-            value={current.productionReelle}
+            value={Number(current.productionReelle || 0) > 0 ? String(Number(current.productionReelle || 0)) : ""}
             subtitle={current.productionReelle >= current.objectifReel ? "SUR LA CIBLE" : "SOUS LA CIBLE"}
             {...common}
           />
@@ -5372,7 +5372,7 @@ export default function App() {
           <KPI
             key={key}
             title="Production actuelle"
-            value={current.productionReelle}
+            value={Number(current.productionReelle || 0) > 0 ? String(Number(current.productionReelle || 0)) : ""}
             subtitle={current.productionReelle >= current.objectifReel ? "SUR LA CIBLE" : "SOUS LA CIBLE"}
             {...common}
           />
@@ -5892,7 +5892,7 @@ export default function App() {
           <KPI
             key={key}
             title="Production actuelle"
-            value={current.productionReelle}
+            value={Number(current.productionReelle || 0) > 0 ? String(Number(current.productionReelle || 0)) : ""}
             subtitle={current.productionReelle >= current.objectifReel ? "SUR LA CIBLE" : "SOUS LA CIBLE"}
             {...common}
           />
