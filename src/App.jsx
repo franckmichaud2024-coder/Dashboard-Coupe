@@ -945,7 +945,7 @@ function KPI({
           style={{
             color: "#d8f4ff",
             fontSize: compact ? 10 : 11,
-            fontWeight: 950,
+            fontWeight: 1000,
             textTransform: "uppercase",
             letterSpacing: "0.08em",
             lineHeight: 1.25,
@@ -3108,7 +3108,7 @@ function ChangePasswordModal({ onClose }) {
         <div
           style={{
             fontSize: 20,
-            fontWeight: 950,
+            fontWeight: 1000,
             color: "#39e8ff",
             letterSpacing: "0.04em",
             textTransform: "uppercase",
@@ -3209,7 +3209,7 @@ function ChangePasswordModal({ onClose }) {
                 "linear-gradient(180deg, rgba(34,93,128,0.95), rgba(10,42,67,0.95))",
               color: "#fff",
               fontSize: 12,
-              fontWeight: 950,
+              fontWeight: 1000,
               cursor: saving ? "not-allowed" : "pointer",
             }}
           >
@@ -4909,22 +4909,22 @@ export default function App() {
                     borderRadius: 14,
                     border: shift === "jour" ? "2px solid rgba(57,232,255,0.98)" : "1px solid rgba(57,232,255,0.38)",
                     background: shift === "jour"
-                      ? "linear-gradient(180deg, rgba(57,232,255,0.34), rgba(9,78,108,0.92))"
+                      ? "linear-gradient(180deg, rgba(57,232,255,0.78), rgba(15,110,150,0.98))"
                       : "rgba(10,42,62,0.78)",
-                    color: shift === "jour" ? "#ffffff" : "#39e8ff",
+                    color: shift === "jour" ? "#ffffff" : "#7fefff",
                     fontSize: mobileCompact ? 12 : 13,
-                    fontWeight: 950,
+                    fontWeight: 1000,
                     letterSpacing: "0.035em",
                     cursor: "pointer",
-                    transform: shift === "jour" ? "translateY(-2px) scale(1.03)" : "none",
+                    transform: shift === "jour" ? "translateY(-4px) scale(1.08)" : "none",
                     boxShadow: shift === "jour"
-                      ? "0 0 0 3px rgba(57,232,255,0.15), 0 0 28px rgba(57,232,255,0.38), inset 0 0 18px rgba(255,255,255,0.10)"
+                      ? "0 0 0 3px rgba(57,232,255,0.15), 0 0 42px rgba(57,232,255,0.95), inset 0 0 18px rgba(255,255,255,0.10)"
                       : "none",
                     whiteSpace: "nowrap",
                     fontFamily: UI_FONT,
                   }}
                 >
-                  Quart de jour
+                  Quart de jour 🔵
                 </button>
 
                 <button
@@ -4956,22 +4956,22 @@ export default function App() {
                     borderRadius: 14,
                     border: shift === "soir" ? "2px solid rgba(255,216,77,0.98)" : "1px solid rgba(255,216,77,0.38)",
                     background: shift === "soir"
-                      ? "linear-gradient(180deg, rgba(255,216,77,0.38), rgba(92,70,12,0.94))"
+                      ? "linear-gradient(180deg, rgba(255,216,77,0.82), rgba(120,92,16,0.98))"
                       : "rgba(54,43,11,0.78)",
-                    color: shift === "soir" ? "#ffffff" : "#ffd84d",
+                    color: shift === "soir" ? "#ffffff" : "#ffe98a",
                     fontSize: mobileCompact ? 12 : 13,
-                    fontWeight: 950,
+                    fontWeight: 1000,
                     letterSpacing: "0.035em",
                     cursor: "pointer",
-                    transform: shift === "soir" ? "translateY(-2px) scale(1.03)" : "none",
+                    transform: shift === "soir" ? "translateY(-4px) scale(1.08)" : "none",
                     boxShadow: shift === "soir"
-                      ? "0 0 0 3px rgba(255,216,77,0.15), 0 0 30px rgba(255,216,77,0.42), inset 0 0 18px rgba(255,255,255,0.10)"
+                      ? "0 0 0 3px rgba(255,216,77,0.15), 0 0 46px rgba(255,216,77,0.98), inset 0 0 18px rgba(255,255,255,0.10)"
                       : "none",
                     whiteSpace: "nowrap",
                     fontFamily: UI_FONT,
                   }}
                 >
-                  Quart de soir
+                  Quart de soir 🌙
                 </button>
 
                 <button
