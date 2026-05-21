@@ -2932,7 +2932,7 @@ function LoginScreen() {
             marginBottom: 8,
           }}
         >
-          Dashboard Production
+          Dashboard Coupe
         </div>
 
         <div style={{ color: "#7f99ad", fontSize: 13, fontWeight: 700, marginBottom: 22 }}>
