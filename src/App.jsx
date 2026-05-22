@@ -13,10 +13,10 @@ import {
   Legend,
 } from "recharts";
 
-const STORAGE_KEY = "dashboard_coupe_v18_pc_stable";
+const STORAGE_KEY = "dashboard_abattage_v18_pc_stable";
 const KPI_VISIBILITY_KEY = "dashboard_kpi_visibility_v1";
 const KPI_ORDER_KEY = "dashboard_kpi_order_v1";
-const HISTORY_KEY = "dashboard_historique_production_v1";
+const HISTORY_KEY = "dashboard_historique_abattage_v1";
 const HISTORY_IMAGE_KEY = "dashboard_historique_images_v1";
 const DASHBOARD_STATE_TABLE = "dashboard_state";
 const DASHBOARD_IMAGES_BUCKET = "dashboard-images";
@@ -155,21 +155,21 @@ const PRESETS = {
     ],
   },
   soir: {
-    objectifReel: 3000,
-    productionReelle: 2000,
+    objectifReel: 0,
+    productionReelle: 0,
     periodes: [
-      { id: 1, type: "Production", start: "15:15", end: "17:15", cadence: 585 },
-      { id: 2, type: "Pause", start: "17:15", end: "17:32", cadence: 0 },
-      { id: 3, type: "Production", start: "17:32", end: "19:30", cadence: 500 },
-      { id: 4, type: "Diner", start: "19:30", end: "20:15", cadence: 0 },
-      { id: 5, type: "Production", start: "20:15", end: "22:15", cadence: 500 },
-      { id: 6, type: "Pause", start: "22:15", end: "22:32", cadence: 0 },
-      { id: 7, type: "Production (Fin de quart)", start: "22:32", end: "23:57", cadence: 500 },
+      { id: 1, type: "Production", start: "15:45", end: "18:25", cadence: 635 },
+      { id: 2, type: "Pause", start: "18:25", end: "18:42", cadence: 0 },
+      { id: 3, type: "Production", start: "18:42", end: "20:15", cadence: 635 },
+      { id: 4, type: "Diner", start: "20:15", end: "21:00", cadence: 0 },
+      { id: 5, type: "Production", start: "21:00", end: "23:00", cadence: 635 },
+      { id: 6, type: "Pause", start: "23:00", end: "23:17", cadence: 0 },
+      { id: 7, type: "Production (Fin de quart)", start: "23:17", end: "00:30", cadence: 635 },
     ],
     blocs: [
-      { id: 1, label: "1er bloc", ciblePct: 92, coupeReelle: 1051 },
-      { id: 2, label: "2e bloc", ciblePct: 92, coupeReelle: 2000 },
-      { id: 3, label: "3e bloc", ciblePct: 92, coupeReelle: 3000 },
+      { id: 1, label: "1er bloc", ciblePct: 92, coupeReelle: 0 },
+      { id: 2, label: "2e bloc", ciblePct: 92, coupeReelle: 0 },
+      { id: 3, label: "3e bloc", ciblePct: 92, coupeReelle: 0 },
       { id: 4, label: "4e bloc", ciblePct: 92, coupeReelle: 0 },
       { id: 5, label: "5e bloc (Moyenne / Prévision)", ciblePct: 92, coupeReelle: 0, isPrediction: true },
     ],
@@ -2932,7 +2932,7 @@ function LoginScreen() {
             marginBottom: 8,
           }}
         >
-          Dashboard Coupe
+          Dashboard Abattage
         </div>
 
         <div style={{ color: "#7f99ad", fontSize: 13, fontWeight: 700, marginBottom: 22 }}>
