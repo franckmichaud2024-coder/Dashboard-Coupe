@@ -18,8 +18,8 @@ const KPI_VISIBILITY_KEY = "dashboard_kpi_visibility_v1";
 const KPI_ORDER_KEY = "dashboard_kpi_order_v1";
 const HISTORY_KEY = "dashboard_historique_abattage_v1";
 const HISTORY_IMAGE_KEY = "dashboard_historique_images_v1";
-const DASHBOARD_STATE_TABLE = "dashboard_state";
-const DASHBOARD_IMAGES_BUCKET = "dashboard-images";
+const DASHBOARD_STATE_TABLE = "dashboard_state_abattage";
+const DASHBOARD_IMAGES_BUCKET = "dashboard-images-abattage";
 
 const UI_FONT = "Inter, Segoe UI, Roboto, Arial, sans-serif";
 
