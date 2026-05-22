@@ -326,8 +326,67 @@ function toMinutes(hhmm) {
   return h * 60 + m;
 }
 
+// Convertit une fin après minuit sur la bonne journée.
+// Exemple : 23:17 -> 00:30 = 73 minutes, pas 0 minute.
+function endMinutesAfterStart(start, end) {
+  const s = toMinutes(start);
+  let e = toMinutes(end);
+
+  if (e < s) {
+    e += 24 * 60;
+  }
+
+  return e;
+}
+
 function diffMinutes(start, end) {
-  return Math.max(0, toMinutes(end) - toMinutes(start));
+  const s = toMinutes(start);
+  const e = endMinutesAfterStart(start, end);
+  return Math.max(0, e - s);
+}
+
+function normalizePeriodsTimeline(periodes) {
+  let dayOffset = 0;
+  let previousStart = null;
+
+  return periodes.map((p) => {
+    let start = toMinutes(p.start) + dayOffset;
+
+    if (previousStart !== null && start < previousStart) {
+      dayOffset += 24 * 60;
+      start = toMinutes(p.start) + dayOffset;
+    }
+
+    let end = toMinutes(p.end) + dayOffset;
+
+    if (end < start) {
+      end += 24 * 60;
+    }
+
+    previousStart = start;
+
+    return {
+      ...p,
+      s: start,
+      e: end,
+    };
+  });
+}
+
+function normalizeNowMinutes(periodes, rawNowMinutes) {
+  const rows = normalizePeriodsTimeline(periodes);
+  const firstStart = rows[0]?.s ?? rawNowMinutes;
+  const lastEnd = rows[rows.length - 1]?.e ?? rawNowMinutes;
+
+  let now = rawNowMinutes;
+
+  // Si le quart traverse minuit et que l'heure actuelle est après minuit,
+  // on la place sur la journée suivante pour rester entre le début et la fin du quart.
+  if (lastEnd >= 24 * 60 && now < firstStart) {
+    now += 24 * 60;
+  }
+
+  return now;
 }
 
 function fmtTime(hhmm) {
@@ -399,14 +458,7 @@ function totalWorkMinutes(periodes) {
 
 function validatePeriodes(periodes) {
   const issues = [];
-
-  const rows = periodes
-    .map((p) => ({
-      ...p,
-      s: toMinutes(p.start),
-      e: toMinutes(p.end),
-    }))
-    .sort((a, b) => a.s - b.s);
+  const rows = normalizePeriodsTimeline(periodes);
 
   for (const row of rows) {
     if (row.e <= row.s) {
@@ -485,16 +537,18 @@ function buildProductionBlocSources(periodes) {
 }
 
 function theoreticalUntilNow(periodes, nowMinutes) {
-  return periodes.reduce((sum, p) => {
+  const normalizedNow = normalizeNowMinutes(periodes, nowMinutes);
+
+  return normalizePeriodsTimeline(periodes).reduce((sum, p) => {
     const cadence = Number(p.cadence || 0);
     if (cadence <= 0) return sum;
 
-    const start = toMinutes(p.start);
-    const end = toMinutes(p.end);
+    const start = p.s;
+    const end = p.e;
 
-    if (nowMinutes <= start) return sum;
+    if (normalizedNow <= start) return sum;
 
-    const workedUntil = Math.min(nowMinutes, end);
+    const workedUntil = Math.min(normalizedNow, end);
     const minutesWorked = Math.max(0, workedUntil - start);
 
     return sum + (minutesWorked / 60) * cadence;
@@ -503,7 +557,7 @@ function theoreticalUntilNow(periodes, nowMinutes) {
 
 function minutesToHHMM(totalMinutes) {
   if (!Number.isFinite(totalMinutes)) return "--:--";
-  const normalized = Math.max(0, Math.round(totalMinutes));
+  const normalized = ((Math.round(totalMinutes) % (24 * 60)) + 24 * 60) % (24 * 60);
   const h = Math.floor(normalized / 60);
   const m = normalized % 60;
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
@@ -512,23 +566,24 @@ function minutesToHHMM(totalMinutes) {
 function estimateFinishTime(periodes, nowMinutes, restant, efficacitePonderee) {
   let remaining = Math.max(0, Number(restant || 0));
   const eff = Math.max(0, Number(efficacitePonderee || 0)) / 100;
+  const normalizedNow = normalizeNowMinutes(periodes, nowMinutes);
 
-  if (remaining <= 0) return minutesToHHMM(nowMinutes);
+  if (remaining <= 0) return minutesToHHMM(normalizedNow);
   if (eff <= 0) return "--:--";
 
-  const productive = periodes
+  const productive = normalizePeriodsTimeline(periodes)
     .filter((p) => Number(p.cadence || 0) > 0)
     .map((p) => ({
-      start: toMinutes(p.start),
-      end: toMinutes(p.end),
+      start: p.s,
+      end: p.e,
       cadenceReelle: Number(p.cadence || 0) * eff,
     }))
     .filter((p) => p.end > p.start && p.cadenceReelle > 0);
 
   for (const p of productive) {
-    if (nowMinutes >= p.end) continue;
+    if (normalizedNow >= p.end) continue;
 
-    const usableStart = Math.max(nowMinutes, p.start);
+    const usableStart = Math.max(normalizedNow, p.start);
     const availableMinutes = Math.max(0, p.end - usableStart);
     const possible = (availableMinutes / 60) * p.cadenceReelle;
 
@@ -549,10 +604,11 @@ function estimateFinishTime(periodes, nowMinutes, restant, efficacitePonderee) {
 
 function estimateRealFinishTimeByRemaining(periodes, nowMinutes, restant) {
   const remaining = Math.max(0, Number(restant || 0));
+  const normalizedNow = normalizeNowMinutes(periodes, nowMinutes);
 
-  if (remaining <= 0) return minutesToHHMM(nowMinutes);
+  if (remaining <= 0) return minutesToHHMM(normalizedNow);
 
-  const productive = periodes
+  const productive = normalizePeriodsTimeline(periodes)
     .filter((p) => Number(p.cadence || 0) > 0)
     .map((p) => ({ cadence: Number(p.cadence || 0) }))
     .filter((p) => p.cadence > 0);
@@ -564,7 +620,7 @@ function estimateRealFinishTimeByRemaining(periodes, nowMinutes, restant) {
   if (cochonsParMinute <= 0) return "--:--";
 
   const minutesNeeded = remaining / cochonsParMinute;
-  return minutesToHHMM(nowMinutes + minutesNeeded);
+  return minutesToHHMM(normalizedNow + minutesNeeded);
 }
 
 const shellStyle = {
@@ -3924,7 +3980,7 @@ export default function App() {
 
   const blocsAffiches = useMemo(() => blocsCalcules, [blocsCalcules]);
 
-  const heureFinQuartOfficielle = shift === "jour" ? "15:00" : "23:57";
+  const heureFinQuartOfficielle = current.periodes[current.periodes.length - 1]?.end || (shift === "jour" ? "15:00" : "00:30");
 
   const objectifTotalTheorique = useMemo(
     () => blocsAffiches.reduce((s, b) => s + Number(b.coupe100 || 0), 0),
