@@ -4927,7 +4927,7 @@ export default function App() {
                       fontFamily: UI_FONT,
                     }}
                   >
-                    Dashboard Production
+                    Dashboard Abattage
                   </div>
 
                   <div
