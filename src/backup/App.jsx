@@ -16,10 +16,10 @@ import {
 const STORAGE_KEY = "dashboard_coupe_v18_pc_stable";
 const KPI_VISIBILITY_KEY = "dashboard_kpi_visibility_v1";
 const KPI_ORDER_KEY = "dashboard_kpi_order_v1";
-const HISTORY_KEY = "dashboard_historique_production_v1";
+const HISTORY_KEY = "dashboard_historique_coupe_v1";
 const HISTORY_IMAGE_KEY = "dashboard_historique_images_v1";
-const DASHBOARD_STATE_TABLE = "dashboard_state";
-const DASHBOARD_IMAGES_BUCKET = "dashboard-images";
+const DASHBOARD_STATE_TABLE = "dashboard_state_coupe";
+const DASHBOARD_IMAGES_BUCKET = "dashboard-images-coupe";
 
 const UI_FONT = "Inter, Segoe UI, Roboto, Arial, sans-serif";
 
@@ -155,21 +155,21 @@ const PRESETS = {
     ],
   },
   soir: {
-    objectifReel: 3000,
-    productionReelle: 2000,
+    objectifReel: 0,
+    productionReelle: 0,
     periodes: [
-      { id: 1, type: "Production", start: "15:15", end: "17:15", cadence: 585 },
-      { id: 2, type: "Pause", start: "17:15", end: "17:32", cadence: 0 },
-      { id: 3, type: "Production", start: "17:32", end: "19:30", cadence: 500 },
-      { id: 4, type: "Diner", start: "19:30", end: "20:15", cadence: 0 },
-      { id: 5, type: "Production", start: "20:15", end: "22:15", cadence: 500 },
-      { id: 6, type: "Pause", start: "22:15", end: "22:32", cadence: 0 },
-      { id: 7, type: "Production (Fin de quart)", start: "22:32", end: "23:57", cadence: 500 },
+      { id: 1, type: "Production", start: "15:45", end: "18:25", cadence: 635 },
+      { id: 2, type: "Pause", start: "18:25", end: "18:42", cadence: 0 },
+      { id: 3, type: "Production", start: "18:42", end: "20:15", cadence: 635 },
+      { id: 4, type: "Diner", start: "20:15", end: "21:00", cadence: 0 },
+      { id: 5, type: "Production", start: "21:00", end: "23:00", cadence: 635 },
+      { id: 6, type: "Pause", start: "23:00", end: "23:17", cadence: 0 },
+      { id: 7, type: "Production (Fin de quart)", start: "23:17", end: "00:30", cadence: 635 },
     ],
     blocs: [
-      { id: 1, label: "1er bloc", ciblePct: 92, coupeReelle: 1051 },
-      { id: 2, label: "2e bloc", ciblePct: 92, coupeReelle: 2000 },
-      { id: 3, label: "3e bloc", ciblePct: 92, coupeReelle: 3000 },
+      { id: 1, label: "1er bloc", ciblePct: 92, coupeReelle: 0 },
+      { id: 2, label: "2e bloc", ciblePct: 92, coupeReelle: 0 },
+      { id: 3, label: "3e bloc", ciblePct: 92, coupeReelle: 0 },
       { id: 4, label: "4e bloc", ciblePct: 92, coupeReelle: 0 },
       { id: 5, label: "5e bloc (Moyenne / Prévision)", ciblePct: 92, coupeReelle: 0, isPrediction: true },
     ],
@@ -326,8 +326,67 @@ function toMinutes(hhmm) {
   return h * 60 + m;
 }
 
+// Convertit une fin après minuit sur la bonne journée.
+// Exemple : 23:17 -> 00:30 = 73 minutes, pas 0 minute.
+function endMinutesAfterStart(start, end) {
+  const s = toMinutes(start);
+  let e = toMinutes(end);
+
+  if (e < s) {
+    e += 24 * 60;
+  }
+
+  return e;
+}
+
 function diffMinutes(start, end) {
-  return Math.max(0, toMinutes(end) - toMinutes(start));
+  const s = toMinutes(start);
+  const e = endMinutesAfterStart(start, end);
+  return Math.max(0, e - s);
+}
+
+function normalizePeriodsTimeline(periodes) {
+  let dayOffset = 0;
+  let previousStart = null;
+
+  return periodes.map((p) => {
+    let start = toMinutes(p.start) + dayOffset;
+
+    if (previousStart !== null && start < previousStart) {
+      dayOffset += 24 * 60;
+      start = toMinutes(p.start) + dayOffset;
+    }
+
+    let end = toMinutes(p.end) + dayOffset;
+
+    if (end < start) {
+      end += 24 * 60;
+    }
+
+    previousStart = start;
+
+    return {
+      ...p,
+      s: start,
+      e: end,
+    };
+  });
+}
+
+function normalizeNowMinutes(periodes, rawNowMinutes) {
+  const rows = normalizePeriodsTimeline(periodes);
+  const firstStart = rows[0]?.s ?? rawNowMinutes;
+  const lastEnd = rows[rows.length - 1]?.e ?? rawNowMinutes;
+
+  let now = rawNowMinutes;
+
+  // Si le quart traverse minuit et que l'heure actuelle est après minuit,
+  // on la place sur la journée suivante pour rester entre le début et la fin du quart.
+  if (lastEnd >= 24 * 60 && now < firstStart) {
+    now += 24 * 60;
+  }
+
+  return now;
 }
 
 function fmtTime(hhmm) {
@@ -399,14 +458,7 @@ function totalWorkMinutes(periodes) {
 
 function validatePeriodes(periodes) {
   const issues = [];
-
-  const rows = periodes
-    .map((p) => ({
-      ...p,
-      s: toMinutes(p.start),
-      e: toMinutes(p.end),
-    }))
-    .sort((a, b) => a.s - b.s);
+  const rows = normalizePeriodsTimeline(periodes);
 
   for (const row of rows) {
     if (row.e <= row.s) {
@@ -485,16 +537,18 @@ function buildProductionBlocSources(periodes) {
 }
 
 function theoreticalUntilNow(periodes, nowMinutes) {
-  return periodes.reduce((sum, p) => {
+  const normalizedNow = normalizeNowMinutes(periodes, nowMinutes);
+
+  return normalizePeriodsTimeline(periodes).reduce((sum, p) => {
     const cadence = Number(p.cadence || 0);
     if (cadence <= 0) return sum;
 
-    const start = toMinutes(p.start);
-    const end = toMinutes(p.end);
+    const start = p.s;
+    const end = p.e;
 
-    if (nowMinutes <= start) return sum;
+    if (normalizedNow <= start) return sum;
 
-    const workedUntil = Math.min(nowMinutes, end);
+    const workedUntil = Math.min(normalizedNow, end);
     const minutesWorked = Math.max(0, workedUntil - start);
 
     return sum + (minutesWorked / 60) * cadence;
@@ -503,7 +557,7 @@ function theoreticalUntilNow(periodes, nowMinutes) {
 
 function minutesToHHMM(totalMinutes) {
   if (!Number.isFinite(totalMinutes)) return "--:--";
-  const normalized = Math.max(0, Math.round(totalMinutes));
+  const normalized = ((Math.round(totalMinutes) % (24 * 60)) + 24 * 60) % (24 * 60);
   const h = Math.floor(normalized / 60);
   const m = normalized % 60;
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
@@ -512,23 +566,24 @@ function minutesToHHMM(totalMinutes) {
 function estimateFinishTime(periodes, nowMinutes, restant, efficacitePonderee) {
   let remaining = Math.max(0, Number(restant || 0));
   const eff = Math.max(0, Number(efficacitePonderee || 0)) / 100;
+  const normalizedNow = normalizeNowMinutes(periodes, nowMinutes);
 
-  if (remaining <= 0) return minutesToHHMM(nowMinutes);
+  if (remaining <= 0) return minutesToHHMM(normalizedNow);
   if (eff <= 0) return "--:--";
 
-  const productive = periodes
+  const productive = normalizePeriodsTimeline(periodes)
     .filter((p) => Number(p.cadence || 0) > 0)
     .map((p) => ({
-      start: toMinutes(p.start),
-      end: toMinutes(p.end),
+      start: p.s,
+      end: p.e,
       cadenceReelle: Number(p.cadence || 0) * eff,
     }))
     .filter((p) => p.end > p.start && p.cadenceReelle > 0);
 
   for (const p of productive) {
-    if (nowMinutes >= p.end) continue;
+    if (normalizedNow >= p.end) continue;
 
-    const usableStart = Math.max(nowMinutes, p.start);
+    const usableStart = Math.max(normalizedNow, p.start);
     const availableMinutes = Math.max(0, p.end - usableStart);
     const possible = (availableMinutes / 60) * p.cadenceReelle;
 
@@ -549,10 +604,11 @@ function estimateFinishTime(periodes, nowMinutes, restant, efficacitePonderee) {
 
 function estimateRealFinishTimeByRemaining(periodes, nowMinutes, restant) {
   const remaining = Math.max(0, Number(restant || 0));
+  const normalizedNow = normalizeNowMinutes(periodes, nowMinutes);
 
-  if (remaining <= 0) return minutesToHHMM(nowMinutes);
+  if (remaining <= 0) return minutesToHHMM(normalizedNow);
 
-  const productive = periodes
+  const productive = normalizePeriodsTimeline(periodes)
     .filter((p) => Number(p.cadence || 0) > 0)
     .map((p) => ({ cadence: Number(p.cadence || 0) }))
     .filter((p) => p.cadence > 0);
@@ -564,7 +620,7 @@ function estimateRealFinishTimeByRemaining(periodes, nowMinutes, restant) {
   if (cochonsParMinute <= 0) return "--:--";
 
   const minutesNeeded = remaining / cochonsParMinute;
-  return minutesToHHMM(nowMinutes + minutesNeeded);
+  return minutesToHHMM(normalizedNow + minutesNeeded);
 }
 
 const shellStyle = {
@@ -674,7 +730,7 @@ function Btn({ children, active, onClick, compact = false }) {
           <KPI
             key={key}
             title="Production actuelle"
-            value={Number(current.productionReelle || 0) > 0 ? String(Number(current.productionReelle || 0)) : ""}
+            value={current.productionReelle}
             subtitle={current.productionReelle >= current.objectifReel ? "SUR LA CIBLE" : "SOUS LA CIBLE"}
             {...common}
           />
@@ -1067,7 +1123,7 @@ function Gauge({ value, target = 92, compact = false }) {
           <KPI
             key={key}
             title="Production actuelle"
-            value={Number(current.productionReelle || 0) > 0 ? String(Number(current.productionReelle || 0)) : ""}
+            value={current.productionReelle}
             subtitle={current.productionReelle >= current.objectifReel ? "SUR LA CIBLE" : "SOUS LA CIBLE"}
             {...common}
           />
@@ -1382,7 +1438,7 @@ function ChartTooltip({ active, payload, label }) {
           <KPI
             key={key}
             title="Production actuelle"
-            value={Number(current.productionReelle || 0) > 0 ? String(Number(current.productionReelle || 0)) : ""}
+            value={current.productionReelle}
             subtitle={current.productionReelle >= current.objectifReel ? "SUR LA CIBLE" : "SOUS LA CIBLE"}
             {...common}
           />
@@ -1602,7 +1658,7 @@ function NumberText({ children, color = "#eefaff", size = 13, weight = 800 }) {
           <KPI
             key={key}
             title="Production actuelle"
-            value={Number(current.productionReelle || 0) > 0 ? String(Number(current.productionReelle || 0)) : ""}
+            value={current.productionReelle}
             subtitle={current.productionReelle >= current.objectifReel ? "SUR LA CIBLE" : "SOUS LA CIBLE"}
             {...common}
           />
@@ -1789,7 +1845,7 @@ function MobileBlocCard({ bloc, updateBloc, mobileCompact }) {
           <KPI
             key={key}
             title="Production actuelle"
-            value={Number(current.productionReelle || 0) > 0 ? String(Number(current.productionReelle || 0)) : ""}
+            value={current.productionReelle}
             subtitle={current.productionReelle >= current.objectifReel ? "SUR LA CIBLE" : "SOUS LA CIBLE"}
             {...common}
           />
@@ -2932,7 +2988,7 @@ function LoginScreen() {
             marginBottom: 8,
           }}
         >
-          Dashboard Production
+          Dashboard coupe
         </div>
 
         <div style={{ color: "#7f99ad", fontSize: 13, fontWeight: 700, marginBottom: 22 }}>
@@ -3577,10 +3633,6 @@ export default function App() {
             cloudState.data?.jour &&
             cloudState.data?.soir
           ) {
-            if (Date.now() - lastLocalDashboardEditRef.current < 1500) {
-              return;
-            }
-
             setShift(cloudState.shift);
             setStateByShift(cloudState.data);
 
@@ -3928,7 +3980,7 @@ export default function App() {
 
   const blocsAffiches = useMemo(() => blocsCalcules, [blocsCalcules]);
 
-  const heureFinQuartOfficielle = shift === "jour" ? "15:00" : "23:57";
+  const heureFinQuartOfficielle = current.periodes[current.periodes.length - 1]?.end || (shift === "jour" ? "15:00" : "00:30");
 
   const objectifTotalTheorique = useMemo(
     () => blocsAffiches.reduce((s, b) => s + Number(b.coupe100 || 0), 0),
@@ -4311,7 +4363,7 @@ export default function App() {
           <KPI
             key={key}
             title="Production actuelle"
-            value={Number(current.productionReelle || 0) > 0 ? String(Number(current.productionReelle || 0)) : ""}
+            value={current.productionReelle}
             subtitle={current.productionReelle >= current.objectifReel ? "SUR LA CIBLE" : "SOUS LA CIBLE"}
             {...common}
           />
@@ -4875,7 +4927,9 @@ export default function App() {
                       fontFamily: UI_FONT,
                     }}
                   >
-                    Dashboard Production
+
+
+
                   </div>
 
                   <div
@@ -4901,31 +4955,78 @@ export default function App() {
                     alignItems: "center",
                   }}
                 >
-                  <Btn active={shift === "jour"} onClick={() => changeShift("jour")} compact={mobileCompact}>
-                    Quart de jour
-                  </Btn>
-                  <Btn active={shift === "soir"} onClick={() => changeShift("soir")} compact={mobileCompact}>
-                    Quart de soir
-                  </Btn>
+                  
 <button
+                  onClick={() => changeShift("jour")}
+                  style={{
+                    height: mobileCompact ? 38 : 44,
+                    padding: mobileCompact ? "0 14px" : "0 18px",
+                    borderRadius: 14,
+                    border: shift === "jour" ? "3px solid #fff2a6" : "2px solid #ffd84d",
+                    background: shift === "jour"
+                      ? "linear-gradient(180deg, rgba(42,28,2,1), rgba(4,2,0,1))"
+                      : "rgba(18,12,2,0.96)",
+                    color: shift === "jour" ? "#ffffff" : "#ffd84d",
+                    fontSize: mobileCompact ? 12 : 13,
+                    fontWeight: 950,
+                    letterSpacing: "0.035em",
+                    cursor: "pointer",
+                    transform: shift === "jour" ? "scale(1.08)" : "scale(1)",
+                    boxShadow: shift === "jour"
+                      ? "0 0 75px rgba(255,216,77,1), 0 0 20px rgba(255,216,77,0.95), inset 0 0 48px rgba(0,0,0,0.92)"
+                      : "0 0 14px rgba(255,216,77,0.32)",
+                    whiteSpace: "nowrap",
+                    fontFamily: UI_FONT,
+                  }}
+                >
+                  ☀ Quart de jour
+                </button>
+
+                <button
                   onClick={() => navigateHistoryRoute("/historique-jour")}
                   style={{
                     height: mobileCompact ? 38 : 44,
                     padding: mobileCompact ? "0 14px" : "0 18px",
                     borderRadius: 14,
-                    border: "1px solid rgba(57,232,255,0.38)",
-                    background: "linear-gradient(180deg, rgba(12,72,98,0.92), rgba(5,25,45,0.96))",
-                    color: "#39e8ff",
+                    border: "2px solid #ffd84d",
+                    background: "rgba(18,12,2,0.96)",
+                    color: "#ffd84d",
                     fontSize: mobileCompact ? 12 : 13,
-                    fontWeight: 900,
+                    fontWeight: 950,
                     letterSpacing: "0.035em",
                     cursor: "pointer",
-                    boxShadow: "0 0 20px rgba(57,232,255,0.14)",
+                    boxShadow: "0 0 18px rgba(255,216,77,0.42)",
                     whiteSpace: "nowrap",
                     fontFamily: UI_FONT,
                   }}
                 >
-                  📈 Historique jour
+                  ☀ Historique jour
+                </button>
+
+                <button
+                  onClick={() => changeShift("soir")}
+                  style={{
+                    height: mobileCompact ? 38 : 44,
+                    padding: mobileCompact ? "0 14px" : "0 18px",
+                    borderRadius: 14,
+                    border: shift === "soir" ? "3px solid #c9fbff" : "2px solid #39e8ff",
+                    background: shift === "soir"
+                      ? "linear-gradient(180deg, rgba(2,28,42,1), rgba(0,2,6,1))"
+                      : "rgba(2,18,28,0.96)",
+                    color: shift === "soir" ? "#ffffff" : "#39e8ff",
+                    fontSize: mobileCompact ? 12 : 13,
+                    fontWeight: 950,
+                    letterSpacing: "0.035em",
+                    cursor: "pointer",
+                    transform: shift === "soir" ? "scale(1.08)" : "scale(1)",
+                    boxShadow: shift === "soir"
+                      ? "0 0 75px rgba(57,232,255,1), 0 0 20px rgba(57,232,255,0.95), inset 0 0 48px rgba(0,0,0,0.92)"
+                      : "0 0 14px rgba(57,232,255,0.32)",
+                    whiteSpace: "nowrap",
+                    fontFamily: UI_FONT,
+                  }}
+                >
+                  🌙 Quart de soir
                 </button>
 
                 <button
@@ -4934,20 +5035,21 @@ export default function App() {
                     height: mobileCompact ? 38 : 44,
                     padding: mobileCompact ? "0 14px" : "0 18px",
                     borderRadius: 14,
-                    border: "1px solid rgba(255,216,77,0.38)",
-                    background: "linear-gradient(180deg, rgba(90,68,14,0.82), rgba(5,25,45,0.96))",
-                    color: "#ffd84d",
+                    border: "2px solid #39e8ff",
+                    background: "rgba(2,18,28,0.96)",
+                    color: "#39e8ff",
                     fontSize: mobileCompact ? 12 : 13,
-                    fontWeight: 900,
+                    fontWeight: 950,
                     letterSpacing: "0.035em",
                     cursor: "pointer",
-                    boxShadow: "0 0 20px rgba(255,216,77,0.12)",
+                    boxShadow: "0 0 18px rgba(57,232,255,0.42)",
                     whiteSpace: "nowrap",
                     fontFamily: UI_FONT,
                   }}
                 >
                   🌙 Historique soir
                 </button>
+
                 </div>
               </div>
 
@@ -5372,7 +5474,7 @@ export default function App() {
           <KPI
             key={key}
             title="Production actuelle"
-            value={Number(current.productionReelle || 0) > 0 ? String(Number(current.productionReelle || 0)) : ""}
+            value={current.productionReelle}
             subtitle={current.productionReelle >= current.objectifReel ? "SUR LA CIBLE" : "SOUS LA CIBLE"}
             {...common}
           />
@@ -5846,9 +5948,9 @@ export default function App() {
                         "Fin",
                         "Minutes travaillées",
                         "Cadence cible / h",
-                        "Coupe à 100 %",
-                        "Coupe cible (%)",
-                        "Coupe cible réelle",
+                        "Potentiel théorique",
+                        "Objectif (%)",
+                        "Objectif réel",
                         "Coupe réelle cumulative",
                         "Réel bloc",
                         "Écart de coupe",
@@ -5892,7 +5994,7 @@ export default function App() {
           <KPI
             key={key}
             title="Production actuelle"
-            value={Number(current.productionReelle || 0) > 0 ? String(Number(current.productionReelle || 0)) : ""}
+            value={current.productionReelle}
             subtitle={current.productionReelle >= current.objectifReel ? "SUR LA CIBLE" : "SOUS LA CIBLE"}
             {...common}
           />

@@ -2988,7 +2988,7 @@ function LoginScreen() {
             marginBottom: 8,
           }}
         >
-          Dashboard coupe
+          DASHBOARD COUPE
         </div>
 
         <div style={{ color: "#7f99ad", fontSize: 13, fontWeight: 700, marginBottom: 22 }}>
@@ -4927,9 +4927,7 @@ export default function App() {
                       fontFamily: UI_FONT,
                     }}
                   >
-
-
-
+                    DASHBOARD COUPE
                   </div>
 
                   <div
