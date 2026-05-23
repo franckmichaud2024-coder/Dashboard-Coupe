@@ -4927,11 +4927,9 @@ export default function App() {
                       fontFamily: UI_FONT,
                     }}
                   >
-<<<<<<< HEAD
-                    Dashboard Coupe
-=======
-                    Dashboard Abattage
->>>>>>> b9aa203f49a8b6581b9124462db746075f27e109
+
+
+
                   </div>
 
                   <div
