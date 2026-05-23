@@ -13,11 +13,11 @@ import {
   Legend,
 } from "recharts";
 
-const STORAGE_KEY = "dashboard_coupe_v18_pc_stable";
-const KPI_VISIBILITY_KEY = "dashboard_kpi_visibility_v1";
-const KPI_ORDER_KEY = "dashboard_kpi_order_v1";
+const STORAGE_KEY = "dashboard_coupe_v19_restaure";
+const KPI_VISIBILITY_KEY = "dashboard_kpi_visibility_coupe_v1";
+const KPI_ORDER_KEY = "dashboard_kpi_order_coupe_v1";
 const HISTORY_KEY = "dashboard_historique_coupe_v1";
-const HISTORY_IMAGE_KEY = "dashboard_historique_images_v1";
+const HISTORY_IMAGE_KEY = "dashboard_historique_images_coupe_v1";
 const DASHBOARD_STATE_TABLE = "dashboard_state_coupe";
 const DASHBOARD_IMAGES_BUCKET = "dashboard-images-coupe";
 
@@ -158,13 +158,13 @@ const PRESETS = {
     objectifReel: 0,
     productionReelle: 0,
     periodes: [
-      { id: 1, type: "Production", start: "15:45", end: "18:25", cadence: 635 },
-      { id: 2, type: "Pause", start: "18:25", end: "18:42", cadence: 0 },
-      { id: 3, type: "Production", start: "18:42", end: "20:15", cadence: 635 },
-      { id: 4, type: "Diner", start: "20:15", end: "21:00", cadence: 0 },
-      { id: 5, type: "Production", start: "21:00", end: "23:00", cadence: 635 },
-      { id: 6, type: "Pause", start: "23:00", end: "23:17", cadence: 0 },
-      { id: 7, type: "Production (Fin de quart)", start: "23:17", end: "00:30", cadence: 635 },
+      { id: 1, type: "Production", start: "15:15", end: "17:15", cadence: 585 },
+      { id: 2, type: "Pause", start: "17:15", end: "17:32", cadence: 0 },
+      { id: 3, type: "Production", start: "17:32", end: "19:30", cadence: 500 },
+      { id: 4, type: "Diner", start: "19:30", end: "20:15", cadence: 0 },
+      { id: 5, type: "Production", start: "20:15", end: "22:15", cadence: 500 },
+      { id: 6, type: "Pause", start: "22:15", end: "22:32", cadence: 0 },
+      { id: 7, type: "Production (Fin de quart)", start: "22:32", end: "23:57", cadence: 500 },
     ],
     blocs: [
       { id: 1, label: "1er bloc", ciblePct: 92, coupeReelle: 0 },
@@ -206,6 +206,48 @@ function makeEmptyDashboardState() {
   };
 }
 
+
+function normalizeCoupeDashboardState(candidate) {
+  if (
+    !candidate ||
+    (candidate.shift !== "jour" && candidate.shift !== "soir") ||
+    !candidate.data?.jour ||
+    !candidate.data?.soir
+  ) {
+    return makeEmptyDashboardState();
+  }
+
+  const normalized = {
+    shift: candidate.shift,
+    data: {
+      jour: clonePreset(PRESETS.jour),
+      soir: clonePreset(PRESETS.soir),
+    },
+  };
+
+  for (const shiftKey of ["jour", "soir"]) {
+    const source = candidate.data?.[shiftKey] || {};
+    const preset = clonePreset(PRESETS[shiftKey]);
+
+    normalized.data[shiftKey] = {
+      ...preset,
+      objectifReel: Number(source.objectifReel || 0),
+      productionReelle: Number(source.productionReelle || 0),
+      blocs: preset.blocs.map((bloc, index) => {
+        const sourceBloc = Array.isArray(source.blocs) ? source.blocs[index] || {} : {};
+
+        return {
+          ...bloc,
+          ciblePct: Number(sourceBloc.ciblePct || bloc.ciblePct || 92),
+          coupeReelle: Number(sourceBloc.coupeReelle || 0),
+        };
+      }),
+    };
+  }
+
+  return normalized;
+}
+
 function safeLoad() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -216,16 +258,7 @@ function safeLoad() {
 
     const parsed = JSON.parse(raw);
 
-    if (
-      !parsed ||
-      (parsed.shift !== "jour" && parsed.shift !== "soir") ||
-      !parsed.data?.jour ||
-      !parsed.data?.soir
-    ) {
-      throw new Error("bad storage");
-    }
-
-    return parsed;
+    return normalizeCoupeDashboardState(parsed);
   } catch {
     return makeEmptyDashboardState();
   }
@@ -3508,14 +3541,27 @@ export default function App() {
       cloudState.data?.jour &&
       cloudState.data?.soir
     ) {
-      setShift(cloudState.shift);
-      setStateByShift(cloudState.data);
+      const normalizedCloudState = normalizeCoupeDashboardState(cloudState);
+      setShift(normalizedCloudState.shift);
+      setStateByShift(normalizedCloudState.data);
 
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudState));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizedCloudState));
       } catch {
         // no-op
       }
+
+      // Corrige automatiquement un ancien état Abattage sauvegardé par erreur dans la table Coupe.
+      await supabase
+        .from(DASHBOARD_STATE_TABLE)
+        .upsert(
+          {
+            user_id: session.user.id,
+            state: normalizedCloudState,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "user_id" }
+        );
 
       setDashboardCloudLoaded(true);
       dashboardCloudLoadedRef.current = true;
@@ -3633,11 +3679,12 @@ export default function App() {
             cloudState.data?.jour &&
             cloudState.data?.soir
           ) {
-            setShift(cloudState.shift);
-            setStateByShift(cloudState.data);
+            const normalizedCloudState = normalizeCoupeDashboardState(cloudState);
+            setShift(normalizedCloudState.shift);
+            setStateByShift(normalizedCloudState.data);
 
             try {
-              localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudState));
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizedCloudState));
             } catch {
               // no-op
             }
@@ -3980,7 +4027,7 @@ export default function App() {
 
   const blocsAffiches = useMemo(() => blocsCalcules, [blocsCalcules]);
 
-  const heureFinQuartOfficielle = current.periodes[current.periodes.length - 1]?.end || (shift === "jour" ? "15:00" : "00:30");
+  const heureFinQuartOfficielle = current.periodes[current.periodes.length - 1]?.end || (shift === "jour" ? "15:00" : "23:57");
 
   const objectifTotalTheorique = useMemo(
     () => blocsAffiches.reduce((s, b) => s + Number(b.coupe100 || 0), 0),
