@@ -5995,9 +5995,9 @@ export default function App() {
                         "Cadence cible / h",
                         "Potentiel théorique",
                         "Objectif (%)",
-                        "Objectif réel",
+                        "Ojectif réel selon objectif (%)",
                         "Coupe réelle cumulative",
-                        "Réel bloc",
+                        "Coupe réel par bloc",
                         "Écart de coupe",
                         "Efficacité réelle",
                       ].map((h) => (
