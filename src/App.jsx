@@ -18,7 +18,7 @@ const KPI_VISIBILITY_KEY = "dashboard_kpi_visibility_coupe_v1";
 const KPI_ORDER_KEY = "dashboard_kpi_order_coupe_v1";
 const HISTORY_KEY = "dashboard_historique_coupe_v1";
 const HISTORY_IMAGE_KEY = "dashboard_historique_images_coupe_v1";
-const DASHBOARD_STATE_TABLE = "dashboard_state_coupe";
+const DASHBOARD_STATE_TABLE = "dashboard_state";
 const DASHBOARD_IMAGES_BUCKET = "dashboard-images-coupe";
 
 const UI_FONT = "Inter, Segoe UI, Roboto, Arial, sans-serif";
