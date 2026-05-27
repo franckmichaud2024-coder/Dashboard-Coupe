@@ -331,17 +331,40 @@ function normalizeCoupeDashboardState(candidate) {
     const source = candidate.data?.[shiftKey] || {};
     const preset = clonePreset(PRESETS[shiftKey]);
 
+    const sourcePeriodes = Array.isArray(source.periodes) && source.periodes.length > 0
+      ? source.periodes
+      : preset.periodes;
+
+    const sourceBlocs = Array.isArray(source.blocs) && source.blocs.length > 0
+      ? source.blocs
+      : preset.blocs;
+
     normalized.data[shiftKey] = {
       ...preset,
       objectifReel: Number(source.objectifReel || 0),
       productionReelle: Number(source.productionReelle || 0),
-      blocs: preset.blocs.map((bloc, index) => {
-        const sourceBloc = Array.isArray(source.blocs) ? source.blocs[index] || {} : {};
+      periodes: sourcePeriodes.map((periode, index) => {
+        const fallback = preset.periodes[index] || preset.periodes[preset.periodes.length - 1] || {};
 
         return {
+          id: Number(periode.id || fallback.id || index + 1),
+          type: periode.type || fallback.type || "Production",
+          start: periode.start || fallback.start || "00:00",
+          end: periode.end || fallback.end || "00:00",
+          cadence: Number(periode.cadence || 0),
+        };
+      }),
+      blocs: sourceBlocs.map((bloc, index) => {
+        const fallback = preset.blocs[index] || preset.blocs[preset.blocs.length - 1] || {};
+
+        return {
+          ...fallback,
           ...bloc,
-          ciblePct: Number(sourceBloc.ciblePct || bloc.ciblePct || 92),
-          coupeReelle: Number(sourceBloc.coupeReelle || 0),
+          id: Number(bloc.id || fallback.id || index + 1),
+          label: bloc.label || fallback.label || `${index + 1}e bloc`,
+          ciblePct: Number(bloc.ciblePct || fallback.ciblePct || 92),
+          coupeReelle: Number(bloc.coupeReelle || 0),
+          isPrediction: Boolean(bloc.isPrediction ?? fallback.isPrediction),
         };
       }),
     };
@@ -3788,6 +3811,10 @@ if (!allowed) return;
             cloudState.data?.jour &&
             cloudState.data?.soir
           ) {
+            if (Date.now() - lastLocalDashboardEditRef.current < 2500) {
+              return;
+            }
+
             const normalizedCloudState = normalizeCoupeDashboardState(cloudState);
             setShift(normalizedCloudState.shift);
             setStateByShift(normalizedCloudState.data);
